@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <!-- jQuery link -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <title>Document</title>
+</head>
+
+<body>
+    
+
+    <h1>This is the survey</h1>
+
+    <h2>Answer each question 1 through 5, 1 being strongly disagree, 5 being strongly agree</h2>
+
+    <p>What is your name</p>
+    <input type=text id="name">
+
+    <p>Please submit a link to your profile photo</p>
+    <input type=text id="photo">
+    <br><br>
+
+    <div id="survey"></div>
+
+    <br>
+    <button id="submitButton">Submit Answers</button>
+
+    <div id="results"></div>
+</body>
+
+<script>
+    console.log("this is working");
+
+    // global functions: -------------------------------------------
+    function findMinimum(arr){
+        minimum = "empty"
+        minimumIndex = "empty"
+
+        for(i = 0; i < arr.length; i++){
+            currentNum = arr[i];
+
+            if(minimum === "empty"){
+                minimum = currentNum;
+                minimumIndex = i;
+            }
+            else if(minimum > currentNum){
+                minimum = currentNum;
+                minimumIndex = i;
+            }
+        }
+
+        return(minimumIndex);
+    }
+
+    //This will pull all of the questions from the questions API
+    $.get("/api/questions", function(response){
+
+        allAnswers = [
+            '1 - Strongly Disagree',
+            '2',
+            '3',
+            '4',
+            '5 - Strongly Agree'
+        ];
+
+        for (i = 0; i < response.length; i++){
+            questionArea = $("<div>").addClass("questionArea");
+        
+            thisQuestion = $("<div>").text(response[i]);
+
+            dropDown = $("<select>").attr("data-number", i).addClass("drop");
+
+            for(y = 0; y < allAnswers.length; y++){
+                thisOption = $("<option>").text(allAnswers[y]).val(y);
+                dropDown.append(thisOption);
+            }
+
+            questionArea.append(thisQuestion, dropDown);
+
+            $("#survey").append(questionArea);
+        }
+    });
+
+    $("#submitButton").on("click", function(){
+        // console.log("yes");
+
+        thisUser = {};
+        userAnswers = [];
+
+        allAnswers = $(".drop  option:selected").each(function(i, thisAnswer){
+            // console.log(thisAnswer);
+
+            answerVal = parseInt($(this).attr("value"));
+            console.log(answerVal);
+
+            userAnswers.push(answerVal);
+        });
+
+        findMatch();
+
+        thisUser.name = $("#name").val();
+        thisUser.photo = $("#photo").val();
+        thisUser.answers = userAnswers;
+
+        // console.log(thisUser);
+
+        // postUser(thisUser);
+    });
+
+    function findMatch(){
+        console.log("working");
+        console.log(userAnswers);
+
+        
+        $.get("api/allUsers", function(allUsers){
+            allDifferences = [];
+
+            allUsers.forEach(function(thisMatch){
+                matchAnswers = thisMatch.answers;
+
+                totalDifference = 0;
+
+                for (i = 0; i < matchAnswers.length; i++){
+                    matchAnswer = matchAnswers[i];
+                    userAnswer = userAnswers[i];
+
+                    thisDifference = Math.abs(matchAnswer - userAnswer);
+
+                    // console.log("User answer: " + userAnswer);
+                    // console.log("Match answer: " + matchAnswer);
+                    // console.log("Difference: " + thisDifference);
+                    
+                    totalDifference += thisDifference;
+                };
+
+                
+                allDifferences.push(totalDifference);
+                console.log("Total difference: " + totalDifference);
+                console.log("All total differences: " + allDifferences);
+                
+                console.log("Total difference for user " + thisMatch.name + ": " + totalDifference);
+                console.log("--------------------");
+            })
+            //End of for each, but still in ajax call
+            console.log("-----------------")
+            console.log(allDifferences);
+
+            console.log("All differences length: " + allDifferences.length);
+
+            //Find what the least value is in allDifferences array-----------------------
+            bestMatchIndex = findMinimum(allDifferences);
+
+            // console.log("index of best match: ");
+            // console.log(bestMatchIndex);
+
+            renderMatch(allUsers[bestMatchIndex]);
+
+            postUser(thisUser)
+
+        });
+
+    };
+
+    function renderMatch(match){
+        bestMatch = $("<div>").addClass("match");
+
+        banner = $("<div>")
+            .addClass("banner")
+            .text("Your best match: ");
+
+        console.log(match);
+        matchName = $("<div>").text(match.name);
+        image = $("<img>").attr("src", match.photo);
+
+        bestMatch.append(banner, matchName, image);
+
+        $("#results").append(bestMatch);
+    }
+
+    function postUser(user){
+        $.post("api/allUsers", user, function(data){
+            if(data){
+                console.log("user has been added");
+            }
+        })
+    }
+
+
+</script>
+</html>
